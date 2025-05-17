@@ -1,0 +1,86 @@
+workflows:
+  ios-workflow:
+    name: iOS Workflow
+    integrations:
+      app_store_connect: Ride Connect API
+    environment:
+      ios_signing:
+        provisioning_profiles:
+          - "Ride Distribution Profile"
+        certificates:
+          - "Ride Distribution Certificate"
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace"
+        XCODE_SCHEME: "Runner"
+        BUNDLE_ID: "com.lrcgroup.demoApp"
+        APPLE_TEAM_ID: "8XRRMA7H34"
+        PRODUCT_NAME: "Ride"
+        VERSION_NUMBER: "1.0.0"
+        BUILD_NUMBER: "1"
+    scripts:
+      - name: Create Flutter project & install dependencies
+        script: |
+          set -e
+
+          # echo "🚀 Création du projet iOS Flutter..."
+          # flutter create .
+
+          echo "🧹 Nettoyage du projet Flutter..."
+          flutter clean
+          flutter pub get
+
+      - name: Set up code signing settings
+        script: |
+          echo "🔐 Setting up code signing..."
+          cd ios
+          xcode-project use-profiles
+
+          # echo "Creating ExportOptions.plist..."
+          # cat > ExportOptions.plist << 'EOF'
+          # <?xml version="1.0" encoding="UTF-8"?>
+          # <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          # <plist version="1.0">
+          # <dict>
+          #     <key>method</key>
+          #     <string>app-store</string>
+          #     <key>provisioningProfiles</key>
+          #     <dict>
+          #         <key>com.lrcgroup.demoApp</key>
+          #         <string>Ride Distribution Profile</string>
+          #     </dict>
+          #     <key>signingStyle</key>
+          #     <string>manual</string>
+          #     <key>teamID</key>
+          #     <string>8XRRMA7H34</string>
+          #     <key>stripSwiftSymbols</key>
+          #     <true/>
+          #     <key>uploadSymbols</key>
+          #     <true/>
+          # </dict>
+          # </plist>
+          # EOF
+
+      - name: Build IPA
+        script: |
+          echo "📦 Building IPA with code signing..."
+          flutter build ipa \
+            --release \
+            --export-options-plist=ios/ExportOptions.plist
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      email:
+        recipients:
+          - kaiserstyve2@gmail.com
+      app_store_connect:
+        auth: integration 
+        submit_to_testflight: true
+        expire_build_submitted_for_review: true
+        submit_to_app_store: false
+        beta_groups:
+          - "Internal Testers"
