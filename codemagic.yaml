@@ -4,6 +4,11 @@ workflows:
     integrations:
       app_store_connect: Demo App Connect
     environment:
+      ios_signing:
+          provisioning_profiles:
+            - "Demo App Prof"
+          certificates:
+            - "Demo App cert"
       flutter: stable
       xcode: latest
       cocoapods: default
