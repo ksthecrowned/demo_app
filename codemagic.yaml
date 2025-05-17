@@ -34,7 +34,7 @@
           set -e
 
           echo "🚀 Création du projet iOS Flutter..."
-          flutter create .
+          # flutter create .
 
           echo "🧹 Nettoyage du projet Flutter..."
           flutter clean
