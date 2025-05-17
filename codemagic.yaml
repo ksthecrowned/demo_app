@@ -38,30 +38,30 @@ workflows:
           cd ios
           xcode-project use-profiles
 
-          # echo "Creating ExportOptions.plist..."
-          # cat > ExportOptions.plist << 'EOF'
-          # <?xml version="1.0" encoding="UTF-8"?>
-          # <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          # <plist version="1.0">
-          # <dict>
-          #     <key>method</key>
-          #     <string>app-store</string>
-          #     <key>provisioningProfiles</key>
-          #     <dict>
-          #         <key>com.lrcgroup.demoApp</key>
-          #         <string>Ride Distribution Profile</string>
-          #     </dict>
-          #     <key>signingStyle</key>
-          #     <string>manual</string>
-          #     <key>teamID</key>
-          #     <string>8XRRMA7H34</string>
-          #     <key>stripSwiftSymbols</key>
-          #     <true/>
-          #     <key>uploadSymbols</key>
-          #     <true/>
-          # </dict>
-          # </plist>
-          # EOF
+          echo "Creating ExportOptions.plist..."
+          cat > ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>com.lrcgroup.demoApp</key>
+                  <string>Ride Distribution Profile</string>
+              </dict>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>teamID</key>
+              <string>8XRRMA7H34</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
 
       - name: Build IPA
         script: |
