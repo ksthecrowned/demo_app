@@ -91,6 +91,8 @@ workflows:
           </plist>
           EOF
 
+          cd ..
+
       - name: Build IPA
         script: |
           echo "📦 Building IPA with code signing..."
