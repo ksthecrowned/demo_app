@@ -1,14 +1,14 @@
-workflows:
+ workflows:
   ios-workflow:
     name: iOS Workflow
     integrations:
-      app_store_connect: Demo App Connect
+      app_store_connect: Ride Connect API
     environment:
       ios_signing:
-          provisioning_profiles:
-            - "Demo App Prof"
-          certificates:
-            - "Demo App cert"
+        provisioning_profiles:
+          - "Demo App Prof"
+        certificates:
+          - "Demo App cert"
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -20,18 +20,26 @@ workflows:
         PRODUCT_NAME: "Demo App"
         VERSION_NUMBER: "1.0.0"
         BUILD_NUMBER: "1"
+        GOOGLE_MAPS_IOS_KEY: "AIzaSyD2ZjTocIDxAPDP2Qtfwl3d_hz_vwDmuyM"
+    triggering:
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: tmp-branch
+          include: true
     scripts:
       - name: Create Flutter project & install dependencies
         script: |
           set -e
 
-          # echo "🚀 Création du projet iOS Flutter..."
-          # flutter create .
+          echo "🚀 Création du projet iOS Flutter..."
+          flutter create .
 
           echo "🧹 Nettoyage du projet Flutter..."
           flutter clean
           flutter pub get
-      
+
       - name: Update version
         script: |
           cd ios
@@ -62,11 +70,11 @@ workflows:
 
       - name: Set up code signing settings
         script: |
-          echo "🔐 Setting up code signing..."
+          # echo "🔐 Setting up code signing..."
           cd ios
           xcode-project use-profiles
 
-          echo "Creating ExportOptions.plist..."
+          # echo "Creating ExportOptions.plist..."
           cat > ExportOptions.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -93,19 +101,146 @@ workflows:
 
           cd ..
 
+      - name: Update Info.plist and AppDelegate.swift
+        script: |
+          cd ios
+          # Update basic app info
+          plutil -replace CFBundleDisplayName -string "$PRODUCT_NAME" Runner/Info.plist
+          plutil -replace CFBundleShortVersionString -string "$VERSION_NUMBER" Runner/Info.plist
+          plutil -replace CFBundleVersion -string "$BUILD_NUMBER" Runner/Info.plist
+          
+          # Add privacy usage descriptions
+          plutil -replace NSPhotoLibraryUsageDescription -string "Ride a besoin d'accéder à votre galerie photo pour vous permettre de télécharger votre photo de profil et des photos pour vos annonces." Runner/Info.plist
+          plutil -replace NSCameraUsageDescription -string "Ride a besoin d'accéder à votre appareil photo pour vous permettre de prendre des photos pour votre profil et vos annonces." Runner/Info.plist
+          plutil -replace NSLocationWhenInUseUsageDescription -string "Ride a besoin d'accéder à votre localisation pour vous montrer les annonces proches de vous et calculer les distances de trajet." Runner/Info.plist
+          plutil -replace NSLocationAlwaysAndWhenInUseUsageDescription -string "Ride a besoin d'accéder à votre localisation pour vous montrer les annonces proches de vous et calculer les distances de trajet, même lorsque l'application est en arrière-plan." Runner/Info.plist
+
+          # Add Google Maps configuration (for compatibility with some plugins)
+          plutil -replace io.flutter.embedded_views_preview -bool true Runner/Info.plist
+          plutil -replace GMSApiKey -string "$GOOGLE_MAPS_IOS_KEY" Runner/Info.plist
+
+          echo "🛠️ Mise à jour de AppDelegate.swift..."
+
+          IOS_APP_DELEGATE="Runner/AppDelegate.swift"
+          
+          # 🔍 Vérifie si GMSServices.provideAPIKey est déjà présent
+          if ! grep -q "GMSServices.provideAPIKey" "$IOS_APP_DELEGATE"; then
+            echo "🔧 Configuration de Google Maps dans AppDelegate.swift"
+          
+            # Sauvegarde du fichier existant
+            cp "$IOS_APP_DELEGATE" "$IOS_APP_DELEGATE.bak"
+          
+            # Réécrit complètement le fichier AppDelegate.swift avec le bon contenu
+            cat > "$IOS_APP_DELEGATE" <<EOF
+          import UIKit
+          import Flutter
+          import GoogleMaps
+          
+          @UIApplicationMain
+          @objc class AppDelegate: FlutterAppDelegate {
+            override func application(
+              _ application: UIApplication,
+              didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+            ) -> Bool {
+              GMSServices.provideAPIKey("$GOOGLE_MAPS_API_KEY")
+              GeneratedPluginRegistrant.register(with: self)
+              return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+            }
+          }
+          EOF
+          
+            echo "✅ AppDelegate.swift mis à jour avec la configuration Google Maps"
+          else
+            echo "✅ Google Maps déjà configuré dans AppDelegate.swift"
+          fi
+
+          ENTITLEMENTS_PATH="Runner/Runner.entitlements"
+          
+          # Crée Runner.entitlements s'il n'existe pas
+          if [ ! -f "$ENTITLEMENTS_PATH" ]; then
+            echo "📁 Fichier Runner.entitlements manquant, création en cours..."
+            cat > "$ENTITLEMENTS_PATH" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>aps-environment</key>
+            <string>production</string>
+          </dict>
+          </plist>
+          EOF
+          else
+            echo "✅ Runner.entitlements trouvé"
+          
+            # Ajoute aps-environment si absent
+            if ! grep -q "aps-environment" "$ENTITLEMENTS_PATH"; then
+              echo "🔧 Ajout de aps-environment à Runner.entitlements"
+              sed -i '' '/<dict>/a\
+            <key>aps-environment</key>\
+            <string>development</string>' "$ENTITLEMENTS_PATH"
+            else
+              echo "✅ aps-environment déjà présent"
+            fi
+          fi
+          
+          APP_DELEGATE_FILE="Runner/AppDelegate.swift"
+
+          # Vérifie si la méthode apnsToken est déjà présente
+          if ! grep -q "Messaging.messaging().apnsToken" "$APP_DELEGATE_FILE"; then
+            echo "🔧 Ajout du support Firebase Messaging dans AppDelegate.swift"
+          
+            # Ajoute les imports si absents
+            if ! grep -q "import FirebaseMessaging" "$APP_DELEGATE_FILE"; then
+              echo "🧩 Ajout des imports Firebase..."
+              sed -i '' '1s/^/import FirebaseMessaging\n/' "$APP_DELEGATE_FILE"
+              sed -i '' '1s/^/import Firebase\n/' "$APP_DELEGATE_FILE"
+            fi
+          
+            # Ajoute la méthode didRegisterForRemoteNotificationsWithDeviceToken dans la classe AppDelegate
+            echo "🧩 Ajout de la méthode didRegisterForRemoteNotificationsWithDeviceToken..."
+          
+            # Insère la méthode juste avant la dernière accolade fermante de la classe
+            sed -i '' '/^}/i\
+          \
+            override func application(_ application: UIApplication,\
+                            didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {\
+              Messaging.messaging().apnsToken = deviceToken\
+            }\
+          ' "$APP_DELEGATE_FILE"
+          
+            echo "✅ Méthode ajoutée dans AppDelegate.swift"
+          else
+            echo "✅ Méthode apnsToken déjà présente dans AppDelegate.swift"
+          fi
+
+
+
+          cd ..
+
       - name: Build IPA
         script: |
           echo "📦 Building IPA with code signing..."
           flutter build ipa \
             --release \
             --export-options-plist=ios/ExportOptions.plist
+      # - name: Build iOS for simulator
+      #   script: |
+      #     flutter build ios --simulator
+      # - name: Zip the .app for simulator
+      #   script: |
+      #     mkdir -p build/ios/ride
+      #     cp -r build/ios/iphonesimulator/*.app build/ios/ride/
+      #     cd build/ios/
+      #     zip -r ride.zip ride
 
     artifacts:
       - build/ios/ipa/*.ipa
+      # - build/ios/ride.zip
 
     publishing:
       email:
         recipients:
+          - lrcgroup@gmail.com
           - kaiserstyve2@gmail.com
       app_store_connect:
         auth: integration 
@@ -113,4 +248,4 @@ workflows:
         expire_build_submitted_for_review: true
         submit_to_app_store: false
         beta_groups:
-          - "Internal Testers"
+         - "Internal Testers"
