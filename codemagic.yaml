@@ -2,13 +2,8 @@ workflows:
   ios-workflow:
     name: iOS Workflow
     integrations:
-      app_store_connect: Ride Connect API
+      app_store_connect: Demo App Connect
     environment:
-      ios_signing:
-        provisioning_profiles:
-          - "Ride Distribution Profile"
-        certificates:
-          - "Ride Distribution Certificate"
       flutter: stable
       xcode: latest
       cocoapods: default
@@ -49,7 +44,7 @@ workflows:
               <key>provisioningProfiles</key>
               <dict>
                   <key>com.lrcgroup.demoApp</key>
-                  <string>Ride Distribution Profile</string>
+                  <string>Demo App Prof</string>
               </dict>
               <key>signingStyle</key>
               <string>manual</string>
