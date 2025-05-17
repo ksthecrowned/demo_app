@@ -26,6 +26,34 @@ workflows:
           echo "🧹 Nettoyage du projet Flutter..."
           flutter clean
           flutter pub get
+      
+      - name: Update version
+        script: |
+          cd ios
+          agvtool new-version -all $BUILD_NUMBER
+          cd ..
+          
+          # Update Flutter version in pubspec.yaml
+          sed -i '' "s/version: .*/version: $VERSION_NUMBER+$BUILD_NUMBER/" pubspec.yaml
+
+      - name: Force iOS 15.0 and install pods
+        script: |
+          cd ios
+      
+          # Ajout dans le Podfile
+          if ! grep -q "platform :ios, '15.0'" Podfile; then
+            sed -i '' "1s/^/platform :ios, '15.0'\n/" Podfile
+          fi
+      
+          # Fix Xcode project
+          sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = 12.0;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' Runner.xcodeproj/project.pbxproj
+      
+          # Fix AppFrameworkInfo.plist
+          plutil -replace MinimumOSVersion -string "15.0" Flutter/AppFrameworkInfo.plist || true
+      
+          pod deintegrate
+          pod install
+          cd ..
 
       - name: Set up code signing settings
         script: |
